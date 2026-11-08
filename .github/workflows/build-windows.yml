@@ -5,30 +5,30 @@ on:
   workflow_dispatch:
 
 jobs:
-  construir:
+  build:
     runs-on: windows-latest
     steps:
-      - name: Descargar repositorio
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      - name: Configurar Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Instalar dependencias de Tauri
+      - name: Install Tauri CLI
         run: |
           npm init -y
           npm install @tauri-apps/cli@next
 
-      - name: Compilar ejecutable de Windows
-        run: npx tauri build --bundles exe
+      - name: Build Windows executable
+        run: npx tauri build --bundles nsis
 
-      - name: Subir archivo EXE generado
+      - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: GoChat-2.1-Windows-EXE
-          path: src-tauri/target/release/bundle/exe/*.exe
+          path: src-tauri/target/release/bundle/nsis/*.exe
