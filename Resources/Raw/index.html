@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GoChat 2.1 - ChatGPT Go</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0a0a;color:#00ff41;font-family:'Courier New',monospace;display:flex;height:100vh;overflow:hidden}
+  /* SIDEBAR SIEMPRE ABIERTO - CHAU MENU */
+  #sidebar{width:220px;background:#111;border-right:1px solid #00ff41;display:flex;flex-direction:column;flex-shrink:0}
+  #sidebar h2{padding:14px;text-align:center;font-size:16px;border-bottom:1px solid #00ff41;color:#00ff41}
+  #sidebar h2 small{display:block;font-size:10px;color:#888;margin-top:4px}
+  #newChatBtn{background:#00ff41;color:#000;border:none;padding:10px;margin:10px;border-radius:6px;font-weight:bold;font-family:inherit;cursor:pointer}
+  #newChatBtn:active{opacity:.8}
+  #chatList{flex:1;overflow-y:auto;padding:0 10px}
+  .chatItem{padding:10px;background:#1a1a1a;border:1px solid #222;border-radius:6px;margin-bottom:8px;cursor:pointer;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ccc}
+  .chatItem.active{border-color:#00ff41;color:#00ff41}
+  .chatItem span{float:right;color:#ff4444;font-weight:bold}
+  #sidebarFooter{padding:10px;font-size:10px;color:#666;text-align:center;border-top:1px solid #222}
+  #main{flex:1;display:flex;flex-direction:column;min-width:0}
+  #header{background:#111;padding:12px 14px;border-bottom:1px solid #00ff41;display:flex;justify-content:space-between;align-items:center}
+  #header b{font-size:15px}
+  #header small{color:#888;font-size:10px}
+  #messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+  .msg{max-width:88%;padding:10px 12px;border-radius:10px;font-size:14px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap}
+  .user{background:#00ff41;color:#000;align-self:flex-end;border-bottom-right-radius:2px}
+  .bot{background:#1a1a1a;color:#e0e0e0;align-self:flex-start;border:1px solid #222;border-bottom-left-radius:2px}
+  .bot img{max-width:100%;border-radius:8px;margin-top:8px;display:block}
+  .bot .genImg{max-width:100%;border-radius:8px;margin-top:8px}
+  .error{background:#2a0000;color:#ff6b6b;border:1px solid #ff4444}
+  .typing{color:#888;font-style:italic;font-size:12px}
+  /* BOTON BROMA - NO DESCARGA, ES CHISTE */
+  .jokeBtn{display:block;text-align:center;background:#00ff41;color:#000;padding:11px;border-radius:8px;margin-top:10px;font-weight:bold;font-size:13px;border:none;width:100%;cursor:pointer;font-family:inherit}
+  .jokeBtn:active{opacity:.8}
+  .jokeText{font-size:11px;color:#888;text-align:center;margin-top:6px;font-style:italic}
+  #previewArea{display:none;padding:8px 12px;background:#111;border-top:1px solid #222;align-items:center;gap:10px}
+  #previewArea img{height:50px;border-radius:6px}
+  #previewArea button{background:#ff4444;color:#fff;border:none;padding:4px 8px;border-radius:4px}
+  #inputArea{display:flex;gap:8px;padding:10px;background:#111;border-top:1px solid #00ff41;align-items:flex-end}
+  #attachBtn{background:#222;color:#fff;border:1px solid #444;font-size:20px;width:44px;height:44px;border-radius:8px;cursor:pointer;flex-shrink:0}
+  #textInput{flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:8px;padding:11px;font-family:inherit;font-size:15px;resize:none;max-height:100px;outline:none}
+  #textInput:focus{border-color:#00ff41}
+  #sendBtn{background:#00ff41;color:#000;border:none;width:44px;height:44px;border-radius:8px;font-weight:bold;font-size:16px;cursor:pointer;flex-shrink:0}
+  #sendBtn:disabled{opacity:.5}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>GoChat 2.1<small>GPT-OSS-20B via Groq</small></h2>
+  <button id="newChatBtn" onclick="nuevoChat()">+ NUEVO CHAT</button>
+  <div id="chatList"></div>
+  <div id="sidebarFooter">ChatGPT Go<br>&lt; 60KB • Ultra Ligero<br>Sin botón MENU, de nada 😂</div>
+</div>
+
+<div id="main">
+  <div id="header">
+    <div><b>ChatGPT Go</b><br><small id="statusText">Listo • Servidor protegido</small></div>
+    <!-- CHAU MENU - LO SACAMOS PARA NO PELEARNOS -->
+  </div>
+  <div id="messages"></div>
+  <div id="previewArea">
+    <img id="previewImg" src="">
+    <span id="previewName" style="font-size:12px;color:#ccc;flex:1">imagen</span>
+    <button onclick="quitarImagen()">X</button>
+  </div>
+  <div id="inputArea">
+    <button id="attachBtn" onclick="document.getElementById('fileInput').click()">📎</button>
+    <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="subirImagen(this)">
+    <textarea id="textInput" rows="1" placeholder="Escribí algo... /imagen para generar" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviar();}"></textarea>
+    <button id="sendBtn" onclick="enviar()">OK</button>
+  </div>
+</div>
+
+<script>
+// ============ CONFIG - GOCHAT 2.1 - VERSION BROMA ============
+// TRAMPA PARA HACKERS - NO ES LA KEY REAL
+const API_KEY = "¡CAÍSTE EN LA TRAMPA, HACKER TRAMPOSO! 😂🐧";
+
+// SERVIDOR PRIVADO - LA KEY REAL ESTA SOLO EN EL SERVIDOR, NUNCA EN LA APP
+const SERVER_URL = "https://instructions-disposition-decorative-shown.trycloudflare.com/chat";
+
+const MODEL_TEXTO = "openai/gpt-oss-20b";
+const MODEL_VISION = "qwen/qwen3.8-27b";
+
+let chats = [];
+let chatActualId = null;
+let imagenActual = null;
+let imagenNombre = "";
+let ultimaImagenGen = 0;
+
+function guardarChats(){
+  try{ localStorage.setItem("gochat_chats_v21", JSON.stringify(chats)); }catch(e){}
+  renderLista();
+}
+function cargarChats(){
+  try{
+    let d = localStorage.getItem("gochat_chats_v21");
+    if(d){ chats = JSON.parse(d); }
+  }catch(e){ chats = []; }
+  if(!chats || chats.length===0){ crearChatSilencioso(); } else { chatActualId = chats[0].id; }
+  renderLista();
+  renderMensajes();
+}
+function crearChatSilencioso(){
+  let c = {id: Date.now(), titulo: "Nuevo chat", mensajes: []};
+  chats.unshift(c);
+  chatActualId = c.id;
+}
+function nuevoChat(){
+  crearChatSilencioso();
+  guardarChats();
+  renderMensajes();
+}
+function borrarChat(id, ev){
+  ev.stopPropagation();
+  chats = chats.filter(c=>c.id!==id);
+  if(chats.length===0) crearChatSilencioso();
+  if(chatActualId===id) chatActualId = chats[0].id;
+  guardarChats();
+  renderMensajes();
+}
+function abrirChat(id){
+  chatActualId = id;
+  renderLista();
+  renderMensajes();
+}
+function getChatActual(){
+  let c = chats.find(x=>x.id===chatActualId);
+  if(!c){ crearChatSilencioso(); c = chats[0]; }
+  return c;
+}
+function renderLista(){
+  let el = document.getElementById("chatList");
+  el.innerHTML = "";
+  chats.forEach(c=>{
+    let div = document.createElement("div");
+    div.className = "chatItem" + (c.id===chatActualId ? " active" : "");
+    div.onclick = ()=>abrirChat(c.id);
+    let titulo = c.titulo || "Nuevo chat";
+    div.innerHTML = titulo + ' <span onclick="borrarChat('+c.id+',event)">×</span>';
+    el.appendChild(div);
+  });
+}
+
+// ===== BROMA DESCARGAR - NO DESCARGA, ES CHISTE =====
+function bromaDescargar(btn){
+  btn.textContent = "😂 ¡Te la creíste! Sacale captura, lo siento";
+  alert("Para descargar esta imagen tendrás que tomarle una captura de pantalla.\n\nLo siento 😂📸\n\n- GoChat 2.1");
+  setTimeout(()=>{ btn.textContent = "⬇️ DESCARGAR IMAGEN (es broma)"; }, 3000);
+}
+
+function renderMensajes(){
+  let box = document.getElementById("messages");
+  box.innerHTML = "";
+  let c = getChatActual();
+  if(c.mensajes.length===0){
+    agregarBurbuja("¡Hola! Soy GoChat 2.1 👋<br><br>• Escribí para chatear<br>• 📎 para mandar foto y que la vea<br>• <b>Creame una imagen de...</b> para generar imagen<br>• Para descargar: sacale captura, lo siento 😂<br><br>Todo protegido por servidor, sin key expuesta.", "bot", false);
+    return;
+  }
+  c.mensajes.forEach(m=>{
+    if(m.tipo==="imagen_gen"){
+      let div = document.createElement("div");
+      div.className = "msg bot";
+      div.innerHTML = "🖼️ <b>Imagen generada:</b> " + escapar(m.texto) + '<br><img class="genImg" src="'+m.url+'">';
+      let btn = document.createElement("button");
+      btn.className = "jokeBtn";
+      btn.textContent = "⬇️ DESCARGAR IMAGEN (es broma)";
+      btn.onclick = ()=>bromaDescargar(btn);
+      div.appendChild(btn);
+      let joke = document.createElement("div");
+      joke.className = "jokeText";
+      joke.textContent = "Para descargar esta imagen tendrás que tomarle una captura de pantalla. Lo siento 😂";
+      div.appendChild(joke);
+      box.appendChild(div);
+    } else if(m.tipo==="imagen_user"){
+      let div = document.createElement("div");
+      div.className = "msg user";
+      div.innerHTML = escapar(m.texto) + '<br><img src="'+m.url+'" style="max-width:100%;border-radius:8px;margin-top:6px">';
+      box.appendChild(div);
+    } else {
+      agregarBurbuja(m.texto, m.rol==="user" ? "user" : "bot", false, m.esError);
+    }
+  });
+  box.scrollTop = box.scrollHeight;
+}
+function agregarBurbuja(texto, clase, guardar=true, esError=false){
+  let box = document.getElementById("messages");
+  let div = document.createElement("div");
+  div.className = "msg " + clase + (esError ? " error" : "");
+  div.innerHTML = texto;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+function escapar(t){
+  return (t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// CHAU MENU - YA NO HAY FUNCION toggleMenu, NO HACE FALTA
+
+function subirImagen(input){
+  let file = input.files[0];
+  if(!file) return;
+  if(file.name.match(/\.(txt|md|csv|json|py|js|html|css)$/i)){
+    let r = new FileReader();
+    r.onload = e=>{
+      let chat = getChatActual();
+      chat.mensajes.push({rol:"user", texto:"Archivo "+file.name+":\n"+e.target.result, tipo:"texto"});
+      guardarChats();
+      renderMensajes();
+      enviarTextoArchivo(e.target.result, file.name);
+    };
+    r.readAsText(file);
+    input.value="";
+    return;
+  }
+  let r = new FileReader();
+  r.onload = e=>{
+    imagenActual = e.target.result;
+    imagenNombre = file.name;
+    document.getElementById("previewImg").src = imagenActual;
+    document.getElementById("previewName").textContent = file.name;
+    document.getElementById("previewArea").style.display = "flex";
+  };
+  r.readAsDataURL(file);
+  input.value="";
+}
+function quitarImagen(){
+  imagenActual = null;
+  imagenNombre = "";
+  document.getElementById("previewArea").style.display = "none";
+}
+
+function normalizar(s){
+  return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+}
+function esPedidoImagen(texto){
+  let n = normalizar(texto);
+  if(n.startsWith("/imagen") || n.startsWith("/img")) return true;
+  let frases = ["crea una imagen","creame una imagen","genera una imagen","generame una imagen","hazme una imagen","haz una imagen","dibujame","dibujar","dibuja una imagen","crea una foto","genera una foto"];
+  for(let f of frases){ if(n.includes(f)) return true; }
+  return false;
+}
+function extraerPromptImagen(texto){
+  let t = texto.trim();
+  t = t.replace(/^\/(imagen|img)\s*/i, "");
+  let quitar = ["creame una imagen de","crea una imagen de","generame una imagen de","genera una imagen de","hazme una imagen de","haz una imagen de","dibujame","dibujar","creame una imagen","crea una imagen","generame una imagen","genera una imagen"];
+  let nl = normalizar(t);
+  for(let q of quitar){
+    if(nl.startsWith(q)){ t = t.slice(q.length).trim(); break; }
+  }
+  t = t.replace(/^[:\-\s]+/,"").trim();
+  if(!t) t = "a cat";
+  return t;
+}
+
+async function enviar(){
+  let input = document.getElementById("textInput");
+  let texto = input.value.trim();
+  if(!texto && !imagenActual) return;
+  if(!texto && imagenActual) texto = "¿Qué ves en esta imagen? Describila en detalle.";
+  input.value = "";
+  input.style.height = "auto";
+
+  if(esPedidoImagen(texto) && !imagenActual){
+    let prompt = extraerPromptImagen(texto);
+    let ahora = Date.now();
+    let falta = 45000 - (ahora - ultimaImagenGen);
+    if(falta > 0){
+      let seg = Math.ceil(falta/1000);
+      let chat = getChatActual();
+      chat.mensajes.push({rol:"bot", texto:"⏳ Esperá "+seg+" segundos, Pollinations da 1 imagen cada 45 segundos. No cierres la app.", esError:true});
+      guardarChats(); renderMensajes();
+      return;
+    }
+    ultimaImagenGen = ahora;
+    let chat = getChatActual();
+    chat.mensajes.push({rol:"user", texto:texto});
+    if(chat.titulo==="Nuevo chat") chat.titulo = texto.slice(0,30);
+    guardarChats(); renderMensajes();
+    let espera = agregarBurbuja("Generando imagen... ⏳<br>ChatGPT Go puede tardar un poco, espera... Puede tardar 10 segundos, no cierres la app.", "bot", false);
+    let url = "https://image.pollinations.ai/prompt/" + encodeURIComponent(prompt);
+    let img = new Image();
+    img.onload = ()=>{
+      espera.remove();
+      chat.mensajes.push({rol:"bot", texto:prompt, tipo:"imagen_gen", url:url});
+      if(chat.titulo==="Nuevo chat") chat.titulo = prompt.slice(0,30);
+      guardarChats(); renderMensajes();
+    };
+    img.onerror = ()=>{
+      espera.innerHTML = "❌ Pollinations rechazó este prompt por filtro / copyright.<br>Probá con otro: un gato naranja, un perro astronauta, un dragón.<br>Si dice 'Free limit', esperá 45 segundos.";
+    };
+    img.src = url;
+    return;
+  }
+
+  let chat = getChatActual();
+  if(imagenActual){
+    chat.mensajes.push({rol:"user", texto:texto, tipo:"imagen_user", url:imagenActual});
+  } else {
+    chat.mensajes.push({rol:"user", texto:texto});
+  }
+  if(chat.titulo==="Nuevo chat") chat.titulo = texto.slice(0,30);
+  guardarChats(); renderMensajes();
+  let esperaDiv = agregarBurbuja("Escribiendo... ⏳", "bot", false);
+  esperaDiv.classList.add("typing");
+  document.getElementById("sendBtn").disabled = true;
+  try{
+    let mensajes = [];
+    let hist = chat.mensajes.slice(-10);
+    hist.forEach(m=>{
+      if(m.tipo==="imagen_user"){
+        mensajes.push({role:"user", content:[{type:"text", text:m.texto},{type:"image_url", image_url:{url:m.url}}]});
+      } else if(m.tipo==="imagen_gen"){
+      } else if(m.tipo==="texto"){
+        mensajes.push({role:m.rol==="user"?"user":"assistant", content:m.texto});
+      } else {
+        mensajes.push({role:m.rol==="user"?"user":"assistant", content:m.texto});
+      }
+    });
+    let modelo = imagenActual ? MODEL_VISION : MODEL_TEXTO;
+    let res = await fetch(SERVER_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({model: modelo, messages: mensajes, temperature: 0.7, max_tokens: 1000})
+    });
+    let data = await res.json();
+    esperaDiv.remove();
+    if(data.error){
+      let msgError = data.error.message || JSON.stringify(data.error);
+      agregarBurbuja("ERROR SERVIDOR: " + escapar(msgError), "bot", false, true);
+      chat.mensajes.push({rol:"bot", texto:"ERROR SERVIDOR: "+msgError, esError:true});
+      guardarChats();
+    } else if(!data.choices || !data.choices[0]){
+      agregarBurbuja("ERROR SERVIDOR: Respuesta sin choices. Revisá Termux / Cloudflare.", "bot", false, true);
+      chat.mensajes.push({rol:"bot", texto:"ERROR SERVIDOR: Respuesta sin choices", esError:true});
+      guardarChats();
+    } else {
+      let respuesta = data.choices[0].message.content || "";
+      agregarBurbuja(escapar(respuesta).replace(/\n/g,"<br>"), "bot", false);
+      chat.mensajes.push({rol:"assistant", texto:respuesta});
+      guardarChats();
+    }
+  }catch(e){
+    esperaDiv.remove();
+    agregarBurbuja("ERROR RED: " + escapar(e.message) + "<br>¿Termux sigue corriendo? ¿El túnel de Cloudflare sigue vivo?", "bot", false, true);
+    chat.mensajes.push({rol:"bot", texto:"ERROR RED: "+e.message, esError:true});
+    guardarChats();
+  }
+  quitarImagen();
+  document.getElementById("sendBtn").disabled = false;
+}
+
+async function enviarTextoArchivo(contenido, nombre){
+  let chat = getChatActual();
+  let esperaDiv = agregarBurbuja("Leyendo "+nombre+"... ⏳", "bot", false);
+  try{
+    let res = await fetch(SERVER_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({model: MODEL_TEXTO, messages: [{role:"user", content:"Analizá este archivo "+nombre+":\n"+contenido.slice(0,6000)}], temperature: 0.7, max_tokens: 1000})
+    });
+    let data = await res.json();
+    esperaDiv.remove();
+    if(data.choices && data.choices[0]){
+      let r = data.choices[0].message.content;
+      agregarBurbuja(escapar(r).replace(/\n/g,"<br>"), "bot", false);
+      chat.mensajes.push({rol:"assistant", texto:r});
+      guardarChats();
+    } else {
+      agregarBurbuja("ERROR SERVIDOR: sin choices", "bot", false, true);
+    }
+  }catch(e){
+    esperaDiv.remove();
+    agregarBurbuja("ERROR RED: "+escapar(e.message), "bot", false, true);
+  }
+}
+
+document.getElementById("textInput").addEventListener("input", function(){
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 100) + "px";
+});
+
+window.onload = cargarChats;
+</script>
+</body>
+  </html>
