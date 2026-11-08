@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0-windows10.0.19041.0</TargetFrameworks>
+    <OutputType Condition="'$(TargetFramework)' != 'net10.0-windows10.0.19041.0'">Library</OutputType>
+    <OutputType Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">WinExe</OutputType>
     <RootNamespace>GoChat</RootNamespace>
     <AssemblyName>GoChat</AssemblyName>
     <UseMaui>true</UseMaui>
@@ -19,15 +20,3 @@
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
-    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.110" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <MauiXaml Include="**/*.xaml" />
-    <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
-  </ItemGroup>
-
-</Project>
