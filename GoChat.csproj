@@ -1,13 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows10.0.19041.0;net8.0-android</TargetFrameworks>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <RootNamespace>GoChat</RootNamespace>
     <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <ApplicationTitle>GoChat 2.1 - ChatGPT Go</ApplicationTitle>
-    <ApplicationId>com.alvaromente.gptgo</ApplicationId>
+    <ApplicationId>com.alvaromonte.gptgo</ApplicationId>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
   </PropertyGroup>
+
   <ItemGroup>
+    <MauiXaml Include="**/*.xaml" />
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+
 </Project>
