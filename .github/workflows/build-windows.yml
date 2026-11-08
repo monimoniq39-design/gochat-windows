@@ -1,20 +1,32 @@
-name: Crear EXE Windows - GoChat 2.1
+name: build-windows
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
 jobs:
-  build-windows:
+  build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet workload install maui
-      - run: dotnet restore GoChat.csproj
-      - run: dotnet publish GoChat.csproj -f net8.0-windows10.0.19041.0 -c Release -o ./EXE
-      - uses: actions/upload-artifact@v4
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui --ignore-failed-sources
+
+      - name: Restore
+        run: dotnet restore GoChat.csproj
+
+      - name: Publish Windows
+        run: dotnet publish GoChat.csproj -f net8.0-windows10.0.19041.0 -c Release -o ./EXE
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
         with:
           name: GoChat-2.1-Windows-EXE
-          path: ./EXE/
+          path: ./EXE
