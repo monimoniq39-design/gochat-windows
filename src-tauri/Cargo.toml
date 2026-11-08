@@ -1,0 +1,18 @@
+[package]
+name = "gochat"
+version = "2.1.0"
+description = "ChatGPT Go Web App"
+authors = ["monimon"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = "2.0.0"
+
+[dependencies]
+tauri = { version = "2.0.0", features = [] }
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
